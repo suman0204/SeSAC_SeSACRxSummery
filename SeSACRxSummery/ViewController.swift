@@ -19,10 +19,11 @@ class BoxOfficeViewController: UIViewController {
     let disposeBag = DisposeBag()
     
     let array = Array<String>()
-    let items = PublishSubject<[DailyBoxOfficeList]>()//Observable.just(["테스트1", "테스트2", "테스트3"]) //값을 한 번에 방출
+//    let items = PublishSubject<[DailyBoxOfficeList]>()//Observable.just(["테스트1", "테스트2", "테스트3"]) //값을 한 번에 방출
     
-    let recent = BehaviorRelay(value: ["테스트4", "테스트5", "테스트6"]) //BehaviorSubject(value: ["테스트4", "테스트5", "테스트6"]) //Observable.just(["테스트4", "테스트5", "테스트6"]) 새로운 값을 전달 받을 수 있도록 Subject로 바꿔준다
+//    let recent = BehaviorRelay(value: ["테스트4", "테스트5", "테스트6"]) //BehaviorSubject(value: ["테스트4", "테스트5", "테스트6"]) //Observable.just(["테스트4", "테스트5", "테스트6"]) 새로운 값을 전달 받을 수 있도록 Subject로 바꿔준다
 
+    let viewModel = BoxOfficeViewModel()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -31,14 +32,19 @@ class BoxOfficeViewController: UIViewController {
     }
     
     func bind() {
+        let recentText = PublishSubject<String>()
+
+        let input = BoxOfficeViewModel.Input(searchButtonTapped: searchBar.rx.searchButtonClicked, searchText: searchBar.rx.text.orEmpty, recentText: recentText)
         
-        items
+        let output = viewModel.transform(input: input)
+        
+        output.items
             .bind(to: tableView.rx.items(cellIdentifier: "MovieCell", cellType: UITableViewCell.self)) { (row, element, cell) in
                 cell.textLabel?.text = "\(element.movieNm) @ row \(element.openDt)"
             }
             .disposed(by: disposeBag)
 
-        recent
+        output.recent
             .asDriver() //Driver<[String]>
             .drive(collectionView.rx.items(cellIdentifier: "MovieCollectionCell", cellType: MovieCollectionViewCell.self)) { (row, element, cell) in
                 cell.label.text = "\(element) @ row \(row)"
@@ -49,41 +55,43 @@ class BoxOfficeViewController: UIViewController {
 //            }
 //            .disposed(by: disposeBag)
 
-        searchBar.rx.searchButtonClicked
-            .throttle(.seconds(1), scheduler: MainScheduler.instance)
-            .withLatestFrom(searchBar.rx.text.orEmpty, resultSelector: { void, query in
-                return query
-            })
-            .map { text -> Int in
-                guard let newText = Int(text) else { return 20231106 }
-                return newText
-            }
-            .map { validText -> String in
-                return String(validText)
-            }
-            .flatMap{
-                BoxOfficeNetwork.fetchBoxOfficeData(date: $0)
-            }
-            .subscribe(with: self, onNext: { owner, movie in
-//                print(movie)
+//        searchBar.rx.searchButtonClicked
+//            .throttle(.seconds(1), scheduler: MainScheduler.instance)
+//            .withLatestFrom(searchBar.rx.text.orEmpty, resultSelector: { void, query in
+//                return query
+//            })
+//            .map { text -> Int in
+//                guard let newText = Int(text) else { return 20231106 }
+//                return newText
+//            }
+//            .map { validText -> String in
+//                return String(validText)
+//            }
+//            .flatMap{
+//                BoxOfficeNetwork.fetchBoxOfficeData(date: $0)
+//            }
+//            .subscribe(with: self, onNext: { owner, movie in
+////                print(movie)
+//
+//                let data = movie.boxOfficeResult.dailyBoxOfficeList
+//                owner.items.onNext(data)
+//
+//            })
+//            .disposed(by: disposeBag)
                 
-                let data = movie.boxOfficeResult.dailyBoxOfficeList
-                owner.items.onNext(data)
-                
-            })
-            .disposed(by: disposeBag)
-        
         Observable.zip(tableView.rx.modelSelected(DailyBoxOfficeList.self), tableView.rx.itemSelected)
             .map { $0.0.movieNm }
-            .debug()
+//            .debug()
             .subscribe(with: self) { owner, value in
 //                print(value.0, value.1)
 //                value.0.movieNm
                 //1.try 2.recent는 subject, 하지만 오류가 발생할 일이 없다 -> Relay로 쓸 수 있다
-                var data = owner.recent.value 
-                data.append(value)
+//                var data = owner.recent.value 
+//                data.append(value)
+//                
+//                owner.recent.accept(data)
                 
-                owner.recent.accept(data)
+                recentText.onNext(value)
                 
             }
             .disposed(by: disposeBag)
