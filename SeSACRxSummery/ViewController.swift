@@ -29,6 +29,8 @@ class BoxOfficeViewController: UIViewController {
         super.viewDidLoad()
         configure()
         bind()
+        
+        APIManager.shared.signUp()
     }
     
     func bind() {
